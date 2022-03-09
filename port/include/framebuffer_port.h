@@ -103,16 +103,16 @@ typedef struct {
 
 	/* Private data */
 	void * priv;
-}render_dev; //渲染设备, 应用程序读写显示的矩阵数据
+}render_dev_type; //渲染设备, 应用程序读写显示的矩阵数据
 
 //截屏功能
 void MTF_fb_write_back_start(void); //截屏一帧  
 uint8_t MTF_fb_write_back_state(void); //查询完成状态
 
-render_dev *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint32_t height);
-void MTF_fb_destroy(render_dev *render);
-void MTF_fb_present(framebuffer_dev *fb, render_dev *render); //更新显示一帧
-void *MTF_fb_get_dis_mem(render_dev *render); //获取可直接使用的显存地址
+render_dev_type *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint32_t height);
+void MTF_fb_destroy(render_dev_type *render);
+void MTF_fb_present(framebuffer_dev *fb, render_dev_type *render); //更新显示一帧
+void *MTF_fb_get_dis_mem(render_dev_type *render); //获取可直接使用的显存地址
 
 void MTF_fb_set_backlight(framebuffer_dev *fb, int32_t brightness); //设置背光  
 void MTF_fb_TV_input(framebuffer_dev *fb, uint8_t state, uint8_t contrast, uint8_t bright, uint8_t saturation, uint8_t hue); //是否开启AV输入

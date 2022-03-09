@@ -10,12 +10,12 @@ typedef struct
 	float period; //频率 KHz
 	uint8_t polarity; //极性 0正常(高电平和占空比一致), 1翻转
     uint8_t state; //设备状态 
-} PWM_dev;
+} pwm_dev_type;
 
-char MTF_pwm_init(PWM_dev *dev);
-char MTF_pwm_exit(PWM_dev *dev);
-void MTF_pwm_start(PWM_dev *dev);
-void MTF_pwm_suspend(PWM_dev *dev);
-void MTF_pwm_set_duty(PWM_dev *dev, float i);
+char MTF_pwm_init(pwm_dev_type *dev);
+char MTF_pwm_exit(pwm_dev_type *dev);
+void MTF_pwm_start(pwm_dev_type *dev);
+void MTF_pwm_suspend(pwm_dev_type *dev);
+void MTF_pwm_set_duty(pwm_dev_type *dev, float i);
 
 #endif

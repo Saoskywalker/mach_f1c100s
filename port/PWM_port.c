@@ -12,7 +12,7 @@ static pwm_t Beep_PIN = {
     5,
     4};
 
-char MTF_pwm_init(PWM_dev *dev)
+char MTF_pwm_init(pwm_dev_type *dev)
 {
     Beep_PIN.duty = (int32_t)dev->duty;
     Beep_PIN.period = 250000;
@@ -21,26 +21,26 @@ char MTF_pwm_init(PWM_dev *dev)
     return (char)pwm_f1c100s_init(&Beep_PIN);
 }
 
-char MTF_pwm_exit(PWM_dev *dev)
+char MTF_pwm_exit(pwm_dev_type *dev)
 {
     dev->state = 0;
     pwm_f1c100s_disable(&Beep_PIN);
     return 0;
 }
 
-void MTF_pwm_start(PWM_dev *dev)
+void MTF_pwm_start(pwm_dev_type *dev)
 {
     dev->state = 1;
     pwm_f1c100s_enable(&Beep_PIN);
 }
 
-void MTF_pwm_suspend(PWM_dev *dev)
+void MTF_pwm_suspend(pwm_dev_type *dev)
 {
     dev->state = 0;
     pwm_f1c100s_disable(&Beep_PIN);
 }
 
-void MTF_pwm_set_duty(PWM_dev *dev, float i)
+void MTF_pwm_set_duty(pwm_dev_type *dev, float i)
 {
     dev->duty = i;
     pwm_f1c100s_set_duty(&Beep_PIN, (int32_t)i);

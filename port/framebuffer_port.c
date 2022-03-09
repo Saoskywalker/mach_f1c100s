@@ -41,14 +41,14 @@ void MTF_fb_set_backlight(framebuffer_dev *fb, int32_t brightness) //设置背�
     fb_f1c100s_setbl(&fb_f1c100s_pData, brightness); //设置背光
 }
 
-render_dev *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint32_t height)
+render_dev_type *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint32_t height)
 {
     
-	render_dev * render;
+	render_dev_type * render;
 	void * pixels;
 	size_t pixlen = width * height * fb_f1c100s_pData.bytes_per_pixel;
 
-    render = malloc(sizeof(render_dev));
+    render = malloc(sizeof(render_dev_type));
     if (render == NULL)
         return NULL;
 
@@ -91,7 +91,7 @@ render_dev *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint32_t h
 	return render;
 }
 
-void MTF_fb_destroy(render_dev * render)
+void MTF_fb_destroy(render_dev_type * render)
 {
 	if(render)
 	{
@@ -105,14 +105,14 @@ void MTF_fb_destroy(render_dev * render)
     }
 }
 
-void MTF_fb_present(framebuffer_dev *fb, render_dev * render)
+void MTF_fb_present(framebuffer_dev *fb, render_dev_type * render)
 {
 #if DIS_BUF_LEVEL == 3
     fb_f1c100s_present(&fb_f1c100s_pData, render->pixels, render->pixlen); //三级缓冲, 缩放显示时不能用使用此方法
 #endif
 }
 
-void *MTF_fb_get_dis_mem(render_dev *render) //获取可直接使用的显存地址
+void *MTF_fb_get_dis_mem(render_dev_type *render) //获取可直接使用的显存地址
 {
     return render->pixels;
 }
