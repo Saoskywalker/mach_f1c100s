@@ -4,6 +4,8 @@
 #include "types_base.h"
 
 void MTF_sys_reset(void);
+uint8_t system_exit_weak(void);
+uint8_t system_process_weak(void);
 
 uint8_t hardware_init_weak(void);
 
