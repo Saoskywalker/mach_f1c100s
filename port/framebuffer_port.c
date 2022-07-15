@@ -1,15 +1,17 @@
 #include "framebuffer_port.h"
 #include "framebuffer.h"
-#include "LCD_parameter.h"
-#include "malloc.h"
 #include "sys_tvd.h"
 #include "sys_defe.h"
 #include "delay.h"
-#include <dma.h>
+#include "dma_pool.h"
+#include "malloc.h"
+#include "MTF_io.h"
+#include "system_port.h"
+
+#define DEBUG_FRAMEBUFFER(...) //printf(__VA_ARGS__)
 
 //目前F1C100S配置威1级缓冲
 #define DIS_BUF_LEVEL 1 //显示缓存级数: 1~3
-static char _use_vram_flag = 0;
 
 //截屏功能
 void MTF_fb_write_back_start(void) //截屏一帧 
@@ -36,18 +38,18 @@ uint8_t MTF_fb_write_back_state(void) //查询完成状态
     // return fb_f1c100s_write_back_state();
 }
 
-void MTF_fb_set_backlight(framebuffer_dev *fb, int32_t brightness) //设置背光
+void MTF_fb_set_backlight(framebuffer_dev_type *fb, int32_t brightness) //设置背光
 {
     fb_f1c100s_setbl(&fb_f1c100s_pData, brightness); //设置背光
 }
 
-render_dev_type *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint32_t height)
+render_dev_type *MTF_fb_render_create(framebuffer_dev_type *fb, uint32_t width, uint32_t height)
 {
-    
 	render_dev_type * render;
 	void * pixels;
-	size_t pixlen = width * height * fb_f1c100s_pData.bytes_per_pixel;
+    size_t pixlen = width * height * fb_f1c100s_pData.bytes_per_pixel;
 
+    /*****MTF port render create******/
     render = malloc(sizeof(render_dev_type));
     if (render == NULL)
         return NULL;
@@ -56,7 +58,6 @@ render_dev_type *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint3
     static char i = 0;
     if (pixlen == fb_f1c100s_pData.width * fb_f1c100s_pData.height * fb_f1c100s_pData.bytes_per_pixel)
     {
-        _use_vram_flag = 1;
         if (i) //直接写显存
         {
             i = 0;
@@ -67,6 +68,13 @@ render_dev_type *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint3
             i = 1;
             pixels = fb_f1c100s_pData.vram[fb_f1c100s_pData.index];
         }
+        render->width = fb_f1c100s_pData.width;
+        render->height = fb_f1c100s_pData.height;
+        render->format = PIXEL_FORMAT_ARGB32;
+        render->pixels = pixels;
+        render->pixlen = pixlen;
+        render->bytes_per_pixel = fb_f1c100s_pData.bytes_per_pixel;
+        render->priv = NULL;
     }
     else
 #endif
@@ -78,17 +86,16 @@ render_dev_type *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint3
             free(render);
             return NULL;
         }
+        render->width = width;
+        render->height = height;
+        render->format = PIXEL_FORMAT_ARGB32;
+        render->pixels = pixels;
+        render->pixlen = pixlen;
+        render->bytes_per_pixel = fb_f1c100s_pData.bytes_per_pixel;
+        render->priv = NULL;
     }
 
-    render->width = fb_f1c100s_pData.width;
-	render->height = fb_f1c100s_pData.height;
-	render->format = PIXEL_FORMAT_ARGB32;
-	render->pixels = pixels;
-	render->pixlen = pixlen;
-    render->bytes_per_pixel = fb_f1c100s_pData.bytes_per_pixel;
-	render->priv = NULL;
-
-	return render;
+    return render;
 }
 
 void MTF_fb_destroy(render_dev_type * render)
@@ -97,18 +104,17 @@ void MTF_fb_destroy(render_dev_type * render)
 	{
 #if DIS_BUF_LEVEL == 1
         if (render->pixels != fb_f1c100s_pData.vram[0] || render->pixels != fb_f1c100s_pData.vram[1])
-            dma_free_coherent(render->pixels);
-#else
-        dma_free_coherent(render->pixels);
 #endif
+            dma_free_coherent(render->pixels);
+
         free(render);
     }
 }
 
-void MTF_fb_present(framebuffer_dev *fb, render_dev_type * render)
+void MTF_fb_present(framebuffer_dev_type *fb, render_dev_type * render)
 {
 #if DIS_BUF_LEVEL == 3
-    fb_f1c100s_present(&fb_f1c100s_pData, render->pixels, render->pixlen); //三级缓冲, 缩放显示时不能用使用此方法
+    fb_f1c100s_present(&fb_f1c100s_pData, render->pixels, render->pixlen); //三级缓冲
 #endif
 }
 
@@ -117,7 +123,7 @@ void *MTF_fb_get_dis_mem(render_dev_type *render) //获取可直接使用的显�
     return render->pixels;
 }
 
-void MTF_fb_TV_input(framebuffer_dev *fb, uint8_t state, uint8_t contrast, uint8_t bright, uint8_t saturation, uint8_t hue) //是否开启AV输入
+void MTF_fb_TV_input(framebuffer_dev_type *fb, uint8_t state, uint8_t contrast, uint8_t bright, uint8_t saturation, uint8_t hue) //是否开启AV输入
 {
 //当f1c100s开启AV输入时, 调用fb_f1c100s_change_hw会造成配置错误(无法显示), 
 //当f1c100s开启TV时禁止再调用fb_f1c100s_change_hw
@@ -158,7 +164,7 @@ void MTF_fb_TV_input(framebuffer_dev *fb, uint8_t state, uint8_t contrast, uint8
     fb->tv_input_flag = state;
 }
 
-void MTF_fb_scale(framebuffer_dev *fb, uint8_t state, void *data) //是否开启硬件缩放
+void MTF_fb_scale(framebuffer_dev_type *fb, uint8_t state, void *data) //是否开启硬件缩放
 {
     //f1c100s缩放由硬件运算后直接显示, 和cvbs同层, 两者不能同时使用
 	defe_buf_addr = (u32 *)data;
@@ -173,25 +179,9 @@ void MTF_fb_scale(framebuffer_dev *fb, uint8_t state, void *data) //是否开启
     fb->scale_flag = 1; //开启缩放
 }
 
-void MTF_fb_init(framebuffer_dev *fb)
-{   
-    //获取液晶参数
-    fb->xres = LCD_X_PIXEL;
-    fb->yres = LCD_Y_PIXEL;
-    fb->xres_virtual = fb->xres;
-    fb->yres_virtual = fb->yres;
-    fb->sync = LCD_DE_HV_MODE;               // 0: DE_HV 1:DE 2:HV
-    fb->pixclock = LCD_CLK;                  // pixel_clock_hz
-    fb->left_margin = LCD_HFP;               // h_front_porch
-    fb->right_margin = LCD_HBP;              // h_back_porch
-    fb->hsync_len = LCD_HSL;                 // h_sync_len
-    fb->upper_margin = LCD_VFP;              // v_front_porch
-    fb->lower_margin = LCD_VBP;              // v_back_porch
-    fb->vsync_len = LCD_VSL;                 // v_sync_len
-    fb->width = 216;                         //液晶尺寸(单位:mm)
-    fb->height = 135;
-    fb_f1c100s_pData.backlight_max = LCD_BACKLIGHT_MAX; // 0~100
-
+#include "LCD_parameter.h"
+uint8_t MTF_fb_init(framebuffer_dev_type *fb)
+{
     //像素信息
     fb_f1c100s_pData.width = fb->xres;
     fb_f1c100s_pData.height = fb->yres;
@@ -199,8 +189,8 @@ void MTF_fb_init(framebuffer_dev *fb)
     fb_f1c100s_pData.user_height = fb->yres_virtual;
     fb_f1c100s_pData.pwidth = fb->width;
     fb_f1c100s_pData.pheight = fb->height;
-    fb->bits_per_pixel = 18;
-    fb_f1c100s_pData.bits_per_pixel = fb->bits_per_pixel;
+
+    fb_f1c100s_pData.bits_per_pixel = 18;
     fb_f1c100s_pData.bytes_per_pixel = 4;
 
     //LCD信号时序
@@ -218,14 +208,22 @@ void MTF_fb_init(framebuffer_dev *fb)
     fb_f1c100s_pData.timing.den_active = 1;
     fb_f1c100s_pData.timing.clk_active = 0;
 
-    fb->scale_flag = 0; //不开启缩放
-    fb->tv_input_flag = 0; //不使用cvbs输入
-    fb->write_back_addr = fb_f1c100s_pData.write_back_ram; //回写显存地址
-
+    fb_f1c100s_pData.backlight_max = LCD_BACKLIGHT_MAX; //屏幕背光允许的PWM最大值: 0~100
+    
     fb_f1c100s_init(&fb_f1c100s_pData);
+    fb->write_back_addr = fb_f1c100s_pData.write_back_ram; //初始化后的回写显存地址
+
+    return 0;
 }
 
-void MTF_fb_exit(framebuffer_dev *fb)
+uint8_t MTF_fb_reset(framebuffer_dev_type *fb)
 {
+    //因app的设计, f1c100s禁止使用此函数
+    return 0;
+}
 
+uint8_t MTF_fb_exit(framebuffer_dev_type *fb)
+{
+    fb_f1c100s_remove(&fb_f1c100s_pData);
+    return 0;
 }

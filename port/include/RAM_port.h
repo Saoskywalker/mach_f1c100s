@@ -3,7 +3,7 @@
 
 #include "types_base.h"
 #include <malloc.h>
-#include <dma.h>
+#include "dma_pool.h"
 
 static __INLINE char MTF_RAM_init(void)
 {

@@ -3,8 +3,6 @@
 #include "delay.h"
 #include <gpio-f1c100s.h>
 #include <io.h>
-#include "touch.h"
-#include "ts_calibrate.h"
 
 // #define sys_TPAdc_debug(...) printf(__VA_ARGS__)
 #define sys_TPAdc_debug(...)
@@ -79,6 +77,23 @@ int TP_ADC_Read_Value(void)
 	return (read32(TP_DATA_REG) & 0xfff);
 }
 
+//读取x,y坐标
+//最小值不能少于100.
+//x,y:读取到的坐标值
+//返回值:0,失败;1,成功。
+static unsigned char TP_Read_XY(int *x, int *y)
+{
+    int xtemp, ytemp;
+
+	xtemp = TP_ADC_Read_Value();
+	ytemp = TP_ADC_Read_Value();
+
+	//if(xtemp<100||ytemp<100)return 0;//读数失败
+    *x = xtemp;
+    *y = ytemp;
+    return 1; //读数成功
+}
+
 /***************************滤波函数****************************/
 //读取一个坐标值(x或者y)
 //连续读取READ_TIMES次数据,对这些数据升序排列,
@@ -118,7 +133,7 @@ static u16 TP_Read_XOY(unsigned char xy)
 //最小值不能少于100.
 //x,y:读取到的坐标值
 //返回值:0,失败;1,成功。
-static unsigned char TP_Read_XY(int *x, int *y)
+/* static unsigned char TP_Read_XY(int *x, int *y)
 {
     int xtemp, ytemp;
 
@@ -136,7 +151,7 @@ static unsigned char TP_Read_XY(int *x, int *y)
     *x = xtemp;
     *y = ytemp;
     return 1; //读数成功
-}
+} */
 
 //连续2次读取触摸屏IC,且这两次的偏差不能超过
 //ERR_RANGE,满足条件,则认为读数正确,否则读数错误.
@@ -267,18 +282,18 @@ static unsigned char TP_Read_XY(int *x, int *y)
 			}
 			// sys_TPAdc_debug("dis: %d, %d\r\n", tp_dev.x[0],tp_dev.y[0]);
 		}
-		if ((tp_dev.sta & TP_PRES_DOWN) == 0) //之前没有被按下
+		if ((tp_dev.sta) == 0) //之前没有被按下
 		{
-			tp_dev.sta = TP_PRES_DOWN | TP_CATH_PRES; //按键按下
+			tp_dev.sta = 1; //按键按下
 			tp_dev.x[4] = tp_dev.x[0];				  //记录第一次按下时的坐标
 			tp_dev.y[4] = tp_dev.y[0];
 		}
 	}
 	else
 	{
-		if (tp_dev.sta & TP_PRES_DOWN) //之前是被按下的
+		if (tp_dev.sta) //之前是被按下的
 		{
-			tp_dev.sta &= ~(1 << 7); //标记按键松开
+			tp_dev.sta = 0; //标记按键松开
 		}
 		else //之前就没有被按下
 		{
@@ -289,20 +304,15 @@ static unsigned char TP_Read_XY(int *x, int *y)
 		}
 	}
 
-	return tp_dev.sta & TP_PRES_DOWN; //返回当前的触屏状态
+	return tp_dev.sta; //返回当前的触屏状态
 } */
 
 //触摸屏扫描(不带滤波)
-unsigned char F1C_TP_Scan(unsigned char tp)
+unsigned char F1C_TP_Scan(int *x, int *y)
 {
 	unsigned int as = 0;
 	unsigned int n;
 	static int status = 0; //1=按下 2抬起
-	int x = 0;
-	int y = 0;
-	int x_out = 0;
-	int y_out = 0;
-	int temp = 0;
 	static unsigned char FifoErrorCnt = 0;
 
 	as = read32(TP_INT_FIFO_STAT_REG);
@@ -327,53 +337,8 @@ unsigned char F1C_TP_Scan(unsigned char tp)
 		if (n == 2)
 		{
 			FifoErrorCnt = 0;
-			TP_Read_XY(&x, &y);
+			TP_Read_XY(x, y);
 			// sys_TPAdc_debug("TP:n=%d x=%d y=%d \r\n", n, x, y);
-
-			if (tp)
-			{ //读取物理坐标
-				tp_dev.x[0] = x;
-				tp_dev.y[0] = y;
-				// sys_TPAdc_debug("dev: x=%d y=%d \r\n", tp_dev.x[0], tp_dev.y[0]);
-			}
-			else //读取屏幕坐标
-			{
-				//将结果转换为屏幕坐标
-				coords_get(&touch_cal, &x, &y, &x_out, &y_out); //五点校准
-				tp_dev.x[0] = x_out; 
-				tp_dev.y[0] = y_out;
-				// tp_dev.x[0] = tp_dev.xfac * x + tp_dev.xoff; //四点校准
-				// tp_dev.y[0] = tp_dev.yfac * y + tp_dev.yoff;
-
-				//方向转换
-				if (((tp_dev.touchtype & 0x06) >> 1) == 0) //90度
-				{
-					temp = tp_dev.y[0];
-					tp_dev.y[0] = tp_dev.x[0];
-					tp_dev.x[0] = tp_dev.width - 1 - temp;
-				}
-				else if (((tp_dev.touchtype & 0x06) >> 1) == 2) //270度
-				{
-					temp = tp_dev.x[0];
-					tp_dev.x[0] = tp_dev.y[0];
-					tp_dev.y[0] = tp_dev.height - 1 - temp;
-				}
-				else if (((tp_dev.touchtype & 0x06) >> 1) == 3) //180度
-				{
-					tp_dev.x[0] = tp_dev.width - 1 - tp_dev.x[0];
-					tp_dev.y[0] = tp_dev.height - 1 - tp_dev.y[0];
-				}
-				else //0度
-				{
-				}
-				// sys_TPAdc_debug("dis: %d, %d\r\n", tp_dev.x[0],tp_dev.y[0]);
-			}
-			if ((tp_dev.sta & TP_PRES_DOWN) == 0) //之前没有被按下
-			{	//TP_PRES_DOWN按键按下; TP_CATH_PRES用于松开后标记曾经有按下过(需手动清除)
-				tp_dev.sta = TP_PRES_DOWN | TP_CATH_PRES; 
-				tp_dev.x[4] = tp_dev.x[0];				  //记录第一次按下时的坐标
-				tp_dev.y[4] = tp_dev.y[0];
-			}
 		}
 		else
 		{
@@ -389,20 +354,9 @@ unsigned char F1C_TP_Scan(unsigned char tp)
 	else
 	{
 		FifoErrorCnt = 0;
-		if (tp_dev.sta & TP_PRES_DOWN) //之前是被按下的
-		{
-			tp_dev.sta &= ~(1 << 7); //标记按键松开
-		}
-		else //之前就没有被按下
-		{
-			tp_dev.x[4] = 0;
-			tp_dev.y[4] = 0;
-			// tp_dev.x[0] = 0xffff;
-			// tp_dev.y[0] = 0xffff;
-		}
 	}
 
-	return tp_dev.sta & TP_PRES_DOWN; //返回当前的触屏状态
+	return status == 1 ? 1 : 0; //返回当前的触屏状态
 }
 
 //触摸屏初始化
@@ -470,6 +424,9 @@ void TP_MODE_Demo(void)
 				x = TP_ADC_Read_Value();
 				y = TP_ADC_Read_Value();
 				sys_TPAdc_debug("TP:n=%d x=%d y=%d \r\n", n, x, y);
+				status = x; //去除报警
+				status = y;
+				status = 1;
 			}
 		}
 	}

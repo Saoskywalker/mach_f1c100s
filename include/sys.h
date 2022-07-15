@@ -13,7 +13,7 @@ extern "C" {
 
 /*Broad*/
 #include "delay.h"
-#include <dma.h>
+#include "dma_pool.h"
 #include <reg-ccu.h>
 #include <reg-dram.h>
 #include <reg-tcon.h>

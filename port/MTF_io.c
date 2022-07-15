@@ -6,6 +6,54 @@
 
 #include "MTF_io.h"
 #include "malloc.h"
+#include "ROM_port.h"
+#include "Sagittarius_global.h"
+#include "system_board.h"
+
+static unsigned char _storage_local = 0;
+void MTF_storage_local_set(unsigned char num) //选定存储设备
+{
+    _storage_local = num;
+}
+
+unsigned char MTF_storage_local_get(void) //获取储存区域
+{
+    return _storage_local;
+}
+
+/*******路径转换*********/
+//用于将应用输入路径进行转换, 以适应系统底层, 注意禁止打断, 否则出错
+static char _io_change_path[PATH_LEN] = {0};
+static uint8_t _path_change(const char *filename)
+{
+    char *ret;
+
+    memset(_io_change_path, 0, sizeof(_io_change_path));
+    ret = strstr(filename, "./MTF/"); //SD卡
+    if (ret != NULL)
+    {
+        strcat(_io_change_path, "0:/MTF/");
+        ret = ret + strlen(dirPath);
+        strcat(_io_change_path, ret);
+        return MTF_STORAGE_SD;
+    }
+    ret = strstr(filename, "./FF/MTF/"); //FLASH内部文件系统
+    if (ret != NULL)
+    {
+        strcat(_io_change_path, "1:/");
+        ret = ret + strlen(dirPath);
+        strcat(_io_change_path, ret);
+        return MTF_STORAGE_FF;
+    }
+    ret = strstr(filename, "./FLASH/MTF/"); //FLASH无文件系统
+    if (ret != NULL)
+    {
+        ret = ret + strlen(dirPath);
+        strcat(_io_change_path, ret);
+        return MTF_STORAGE_FLASH;
+    }
+    return MTF_STORAGE_ERROR;
+}
 
 /*******************************************/
  //存储缓存: 把指定文件从FLASH复制至RAM, 加快使用时访问速度, 此处针对FATFS使用
@@ -208,7 +256,8 @@ mFILE *cache_open(const char *filename, const char *mode)
         return NULL;
     }
 
-    res = _t_open(file, filename, setMode);
+    _path_change(filename);
+    res = _t_open(file, _io_change_path, setMode);
     if (res == FR_OK)
     {
         return file;
@@ -369,8 +418,28 @@ mFILE *MTF_open(const char *filename, const char *mode)
         free(file);
         return NULL;
     }
-
-    res = f_open(file, filename, setMode);
+    
+    if (_path_change(filename) == MTF_STORAGE_FLASH)
+    {
+        unsigned char flash_data[] = {0, 0, 0};
+        MTF_ROM_read(&flash_data[2], JSON_FLASH_ADDR + 2, 1); //获取文件标记,确认为用户写入
+        if (flash_data[2] != JSON_FLASH_FLAG)
+        {
+            res = FR_NO_FILE;
+        }
+        else
+        {
+            MTF_ROM_read(&flash_data[0], JSON_FLASH_ADDR, 2); //获取文件大小
+            file->fsize = ((uint16_t)flash_data[1] << 8) + flash_data[0];
+            file->data = (void *)JSON_FLASH_ADDR; //非NULL的为FLASH区, 同时表示文件位置
+            file->fptr = 0;
+            res = FR_OK;
+        }
+    }
+    else
+    {
+        res = f_open(file, _io_change_path, setMode);
+    }
     if (res == FR_OK)
     {
         return file;
@@ -388,7 +457,10 @@ int MTF_close(mFILE *stream)
 
     if (stream == NULL)
         return -1;
-    res = f_close(stream);
+    if (stream->data != NULL)
+        res = FR_OK;
+    else
+        res = f_close(stream);
     if (res == FR_OK)
     {
         free(stream);
@@ -407,7 +479,16 @@ size_t MTF_read(void *ptr, size_t size, size_t nmemb, mFILE *stream)
 
     if (stream == NULL)
         return 0;
-    res = f_read(stream, ptr, (UINT)nmemb, &fbr);
+    if (stream->data != NULL)
+    {
+        res = MTF_ROM_read((unsigned char *)ptr, JSON_FLASH_ADDR + 3, nmemb);
+        fbr = nmemb;
+        stream->fptr += nmemb;
+    }
+    else
+    {
+        res = f_read(stream, ptr, (UINT)nmemb, &fbr);
+    }
     if(res == FR_OK)
         return (size_t)fbr;
     else
@@ -466,7 +547,16 @@ int MTF_remove(const char *filename)
 {
     FRESULT res;
 
-    res = f_unlink(filename);
+    if (_path_change(filename) == MTF_STORAGE_FLASH)
+    {   
+        uint8_t flash_data[] = {0, 0, 0};
+        MTF_ROM_write(flash_data, JSON_FLASH_ADDR, sizeof(flash_data)); //抹去文件标记
+        res = FR_OK;
+    }
+    else
+    {
+        res = f_unlink(_io_change_path);
+    }
     if (res == FR_OK)
         return 0;
     else

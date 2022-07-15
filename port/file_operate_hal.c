@@ -1,4 +1,4 @@
-#include "file_operate.h" 
+#include "file_operate_hal.h" 
 #include "MTF_io.h"
 #include "malloc.h"		  
 #include "string.h"
@@ -177,10 +177,10 @@ u32 mf_showfree(u8 *drv)
 //mode:模式
 //au:簇大小
 //返回值:执行结果
-/* u8 mf_fmkfs(u8* path,u8 mode,u16 au)
+uint8_t MTF_disk_fromat(uint8_t *path, uint8_t mode, uint16_t au)
 {
-	return f_mkfs((const TCHAR*)path,mode,au);//格式化,drv:盘符;mode:模式;au:簇大小
-}  */
+	return f_mkfs((const TCHAR *)path, mode, au); //格式化,drv:盘符;mode:模式;au:簇大小
+}
 
 //修改文件/目录名字(如果目录不同,还可以移动文件哦!)
 //oldname:之前的名字
@@ -192,31 +192,30 @@ u32 mf_showfree(u8 *drv)
 } */
 
 //获取盘符（磁盘名字）
-//path:磁盘路径，比如"0:"、"1:"  
-void mf_getlabel(u8 *path)
+//path:磁盘路径，比如"0:"、"1:"
+void MTF_disk_get_label(uint8_t *path)
 {
 	u8 buf[20];
-	u32 sn=0;
+	u32 sn = 0;
 	u8 res;
-	res=f_getlabel ((const TCHAR *)path,(TCHAR *)buf,(DWORD*)&sn);
-	if(res==FR_OK)
+	res = f_getlabel((const TCHAR *)path, (TCHAR *)buf, (DWORD *)&sn);
+	if (res == FR_OK)
 	{
-		file_operate_debug("\r\n磁盘%s 的盘符为:%s\r\n",path,buf);
-		file_operate_debug("磁盘%s 的序列号:%X\r\n\r\n",path,sn); 
-	}else file_operate_debug("\r\n获取失败，错误码:%X\r\n",res);
+		file_operate_debug("\r\n磁盘%s 的盘符为:%s\r\n", path, buf);
+		file_operate_debug("磁盘%s 的序列号:%X\r\n\r\n", path, sn);
+	}
+	else
+	{
+		file_operate_debug("\r\n获取失败，错误码:%X\r\n", res);
+	}
 }
 
 //设置盘符（磁盘名字），最长11个字符！！，支持数字和大写字母组合以及汉字等
-//path:磁盘号+名字，比如"0:ALIENTEK"、"1:OPENEDV"  
-void mf_setlabel(u8 *path)
+//path:磁盘号+名字，比如"0:ALIENTEK"、"1:OPENEDV"
+void MTF_disk_set_label(uint8_t *path)
 {
-	u8 res;
-	res=f_setlabel ((const TCHAR *)path);
-	if(res==FR_OK)
-	{
-		file_operate_debug("\r\n磁盘盘符设置成功:%s\r\n",path);
-	}else file_operate_debug("\r\n磁盘盘符设置失败，错误码:%X\r\n",res);
-} 
+	f_setlabel((const TCHAR *)path);
+}
 
 //文件复制(需用的malloc)
 //将psrc文件,copy到pdst.
@@ -237,7 +236,7 @@ u8 mf_copy(u8 *psrc, u8 *pdst, u8 fwmode)
 	u8 dp[] = {0, ':', 0};
 	
 	dp[0] = pdst[0];
-    exf_getfree(&dp[0],&total,&freeStorage); //获取磁盘容量情况
+    MTF_disk_get_free(&dp[0],&total,&freeStorage); //获取磁盘容量情况
 	total *= 1024; //KB->B
 	freeStorage *= 1024;
 
@@ -472,35 +471,47 @@ u8 mf_exist_files(u8 * path, const u8 *name)
     return res;	  
 }
 
-int mf_load_files(char **out, long *outsize, const char *filename)
+//将一个文件加载至指定内存
+/* load file into buffer that already has the correct allocated size. Returns error code.*/
+static uint8_t _buffer_file(unsigned char *out, size_t size, const char *filename)
 {
-	mFILE *f_temp;
-	int res = 0;
-	size_t size = 0, br = 0;
+	mFILE *file;
+	size_t readsize;
+	file = MTF_open(filename, "rb");
+	if (!file)
+		return 78;
 
-	f_temp = MTF_open(filename, "rb");
-	if (f_temp != NULL)
-	{
-		size = MTF_size(f_temp);
-		*out = malloc(size);
-		br = MTF_read(*out, 1, size, f_temp);
-		if (size != br) //读取失败
-		{
-			free(*out);
-			*out = NULL;
-			res = 7;
-		}
-		else
-		{
-			res = 0;
-		}
-		MTF_close(f_temp);
-	}
-	else
-	{
-		res = 4;
-	}
-	return res;
+	readsize = MTF_read(out, 1, size, file);
+	MTF_close(file);
+
+	if (readsize != size)
+		return 78;
+	return 0;
+}
+
+uint8_t MTF_load_file(unsigned char **out, size_t *outsize, const char *filename)
+{
+	size_t size = 0;
+	mFILE *file;
+
+	file = MTF_open(filename, "rb");
+	if (!file)
+		return 78;
+
+	size = MTF_size(file);
+
+	MTF_close(file);
+
+	if (size < 0)
+		return 78;
+
+	*outsize = (size_t)size;
+
+	*out = (unsigned char *)malloc((size_t)size);
+	if (!(*out) && size > 0)
+		return 83; /*the above malloc failed*/
+
+	return _buffer_file(*out, (size_t)size, filename);
 }
 
 //得到磁盘剩余容量
@@ -508,13 +519,13 @@ int mf_load_files(char **out, long *outsize, const char *filename)
 //total:总容量	 （单位KB）
 //free:剩余容量	 （单位KB）
 //返回值:0,正常.其他,错误代码
-u8 exf_getfree(u8 *drv,u32 *total,u32 *free)
+uint8_t MTF_disk_get_free(uint8_t *drv, uint32_t *total, uint32_t *free)
 {
 	FATFS *fs1;
-	u8 res;
-    u32 fre_clust=0, fre_sect=0, tot_sect=0;
+	uint8_t res;
+    uint32_t fre_clust=0, fre_sect=0, tot_sect=0;
     //得到磁盘信息及空闲簇数量
-    res =(u32)f_getfree((const TCHAR*)drv, (DWORD*)&fre_clust, &fs1);
+    res =(uint32_t)f_getfree((const TCHAR*)drv, (DWORD*)&fre_clust, &fs1);
     if(res==0)
 	{											   
 	    tot_sect=(fs1->n_fatent-2)*fs1->csize;	//得到总扇区数

@@ -3,7 +3,7 @@ void sys_clock_init(void);
 void sys_uart_init(void);
 void sys_mmu_init(void);
 
-void hardware_init_weak(void)
+uint8_t hardware_init_weak(void)
 {
 #if defined(__CC_ARM)
     sys_clock_init();
@@ -11,4 +11,5 @@ void hardware_init_weak(void)
     sys_uart_init();
     sys_mmu_init();
 #endif
+    return 0;
 }

@@ -54,18 +54,18 @@ CFLAGS		= -g -ggdb -Wall -O0 -ffreestanding -std=gnu99 $(DEFINES)
 CXXFLAGS	= -g -ggdb -Wall -O0 -ffreestanding -std=c++11 $(DEFINES)
 else
 PROG = main_release
-ASFLAGS		= -Wall -O3 -ffreestanding -std=gnu99 $(DEFINES)
-CFLAGS		= -Wall -O3 -ffreestanding -std=gnu99 $(DEFINES)
-CXXFLAGS	= -Wall -O3 -ffreestanding -std=c++11 $(DEFINES)
+ASFLAGS		= -Wall -Os -ffreestanding -std=gnu99 $(DEFINES)
+CFLAGS		= -Wall -Os -ffreestanding -std=gnu99 $(DEFINES)
+CXXFLAGS	= -Wall -Os -ffreestanding -std=c++11 $(DEFINES)
 endif
 
-LDFLAGS		= -T arch/$(ARCH)/$(MACH)/f1c100s.ld -nostdlib
-MCFLAGS		= -march=armv5te -mtune=arm926ej-s -mfloat-abi=soft -marm -mno-thumb-interwork
+LDFLAGS		+= -T arch/$(ARCH)/$(MACH)/f1c100s.ld -nostdlib
+MCFLAGS		+= -march=armv5te -mtune=arm926ej-s -mfloat-abi=soft -marm -mno-thumb-interwork
 
 #include path
 INCDIRS	+= \
 	-Istd_lib/include \
-	-Iarch/arm32/include \
+	-Iarch/arm32/public/include \
 	-Iarch/arm32/mach_f1c100s/driver/include \
 	-Iarch/arm32/mach_f1c100s/include \
 	-Iarch/arm32/mach_f1c100s/include/f1c100s \
@@ -81,7 +81,7 @@ SRCDIRS_C +=
 
 #base drivers src
 SRC_C += \
-	arch/arm32/lib/arm32.c \
+	arch/arm32/public/lib/arm32.c \
 	arch/arm32/mach_f1c100s/sys-clock.c \
 	arch/arm32/mach_f1c100s/sys-dram.c \
 	arch/arm32/mach_f1c100s/sys-uart.c \
@@ -89,7 +89,6 @@ SRC_C += \
 	arch/arm32/mach_f1c100s/sys-spi-flash.c \
 	arch/arm32/mach_f1c100s/sys-mmu.c \
 	arch/arm32/mach_f1c100s/exception.c \
-	arch/arm32/mach_f1c100s/delay.c \
 
 # drivers src
 SRC_C += \
@@ -116,6 +115,7 @@ SRC_C += \
 	std_lib/stdio/printf.c \
 	std_lib/stdlib/strntoumax.c \
 	std_lib/stdlib/strtod.c \
+	std_lib/stdlib/rand.c \
 	std_lib/stdio/sscanf.c \
 	std_lib/stdio/vsscanf.c \
 	std_lib/string/strcpy.c \
@@ -130,6 +130,7 @@ SRC_C += \
 	std_lib/math/floor.c \
 	std_lib/math/ceil.c \
 	std_lib/math/fabs.c \
+	std_lib/math/fmin.c \
 	std_lib/ctype/tolower.c \
 	std_lib/ctype/isupper.c \
 	std_lib/ctype/isspace.c \
@@ -138,8 +139,8 @@ SRC_C += \
 #asm source files
 SRC_ASM += \
 	arch/arm32/mach_f1c100s/start.S \
-	arch/arm32/lib/memcpy.S \
-	arch/arm32/lib/memset.S \
+	arch/arm32/public/lib/memcpy.S \
+	arch/arm32/public/lib/memset.S \
 
 all: $(BUILD)/$(addprefix $(PROG), $(FINALLY_TYPE))
 	$(ECHO) "<><><><><><>><><>><><><><><><><><><>><><><><><><>"

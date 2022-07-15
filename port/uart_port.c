@@ -7,6 +7,12 @@ HAL_StatusTypeDef MTF_UART_Init(MTF_HandleDef *huart)
     return HAL_OK;
 }
 
+HAL_StatusTypeDef MTF_UART_exit(MTF_HandleDef *huart)
+{
+    uart_16550_close(&huart->uart);
+    return HAL_OK;
+}
+
 HAL_StatusTypeDef MTF_UART_Reset(MTF_HandleDef *huart)
 {
     uart_16550_fifo_reset(huart->uart);

@@ -23,8 +23,8 @@ SECTIONS
 		PROVIDE(__image_start = .);
 		PROVIDE(__text_start = .);
 		build/arch/arm32/mach_f1c100s/start.o (.text)
-		build/arch/arm32/lib/memcpy.o (.text)
-		build/arch/arm32/lib/memset.o (.text)
+		build/arch/arm32/public/lib/memcpy.o (.text)
+		build/arch/arm32/public/lib/memset.o (.text)
 		build/arch/arm32/mach_f1c100s/sys-uart.o (.text)
 		build/arch/arm32/mach_f1c100s/sys-clock.o (.text)
 		build/arch/arm32/mach_f1c100s/sys-dram.o (.text)

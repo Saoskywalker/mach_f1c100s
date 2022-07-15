@@ -220,6 +220,7 @@ typedef struct
 
 /* Initialization and de-initialization functions  ****************************/
 HAL_StatusTypeDef MTF_UART_Init(MTF_HandleDef *huart);
+HAL_StatusTypeDef MTF_UART_exit(MTF_HandleDef *huart);
 HAL_StatusTypeDef MTF_UART_Reset(MTF_HandleDef *huart);
 
 /**

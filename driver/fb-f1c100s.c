@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <dma.h>
+#include "dma_pool.h"
 #include <clk-f1c100s-pll.h>
 #include <reset-f1c100s.h>
 #include <gpio-f1c100s.h>
@@ -509,8 +509,8 @@ void fb_f1c100s_setbl(fb_f1c100s_pdata_t * pdat, int32_t brightness)
 {
 	if (brightness > pdat->backlight_max)
 		brightness = pdat->backlight_max;
-	//led_set_brightness(pdat->backlight, brightness);
 	pwm_f1c100s_set_duty(pdat->backlight, brightness);
+	pdat->brightness = brightness;
 }
 
 int32_t fb_f1c100s_getbl(fb_f1c100s_pdata_t * pdat)
@@ -553,7 +553,8 @@ void fb_f1c100s_init(fb_f1c100s_pdata_t * pdat)
 	// 	printf("*******dma_alloc full********\r\n");
 
 	//note: pdat->timing.pixel_clock_hz高于33000000, F1C100S_CCU_BASE + CCU_PLL_VIDEO_CTRL需改
-	pdat->backlight = &led_pwm_bl; //back light function	
+	pdat->backlight = &led_pwm_bl; //back light function
+	pdat->brightness = 	0; //back light value current
 	pdat->swapBR = TRUE; //FALSE: close BR swap, TRUE: enable BR swap
 	pdat->layer0_enable = FALSE;
 	pdat->layer1_enable = TRUE;
@@ -582,17 +583,11 @@ void fb_f1c100s_init(fb_f1c100s_pdata_t * pdat)
 
 void fb_f1c100s_remove(fb_f1c100s_pdata_t * pdat)
 {
-	// clk_disable(pdat->clkdefe);
-	// clk_disable(pdat->clkdebe);
-	// clk_disable(pdat->clktcon);
 	f1c100s_clk_defe_disable();
 	f1c100s_clk_debe_disable();
 	f1c100s_clk_tcon_disable();
-	// free(pdat->clkdefe);
-	// free(pdat->clkdebe);
-	// free(pdat->clktcon);
 	dma_free_noncoherent(pdat->vram[0]);
-	// dma_free_noncoherent(pdat->vram[1]);
+	dma_free_noncoherent(pdat->vram[1]);
 }
 
 void fb_f1c100s_suspend(fb_f1c100s_pdata_t * pdat)

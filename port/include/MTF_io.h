@@ -50,6 +50,13 @@ size_t cache_write(const void *ptr, size_t nmemb, mFILE *stream);
 long int cache_tell(mFILE *stream);
 int cache_lseek(mFILE *stream, long int offset, int whence);
 
+#define MTF_STORAGE_SD 1
+#define MTF_STORAGE_FF 2
+#define MTF_STORAGE_FLASH 3
+#define MTF_STORAGE_ERROR 255
+void MTF_storage_local_set(unsigned char num); //选定存储设备
+unsigned char MTF_storage_local_get(void); //获取储存区域
+
 //file函数
 int MTF_error(mFILE *stream);
 mFILE *MTF_open(const char *filename, const char *mode);

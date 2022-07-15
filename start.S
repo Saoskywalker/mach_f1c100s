@@ -52,7 +52,7 @@ _vector:
 _undefined_instruction:
 	.word undefined_instruction
 _software_interrupt:
-	.word vPortYieldProcessor	/*for freerots, if no os, this is software_interrupt */
+	.word software_interrupt	/*for freerots, if no os, this is software_interrupt */
 _prefetch_abort:
 	.word prefetch_abort
 _data_abort:
@@ -60,7 +60,7 @@ _data_abort:
 _not_used:
 	.word not_used
 _irq:
-	.word vFreeRTOS_ISR	/*for freertos, if no os, this is irq */
+	.word irq	/*for freertos, if no os, this is irq */
 _fiq:
 	.word fiq
 

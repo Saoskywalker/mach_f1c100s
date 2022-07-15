@@ -12,7 +12,7 @@ void Init_TP_ADC(int mode);
 void Set_ADC_Channel(int Channel);
 int TP_ADC_Read_Value(void);
 unsigned char F1C_TP_Init(void);
-unsigned char F1C_TP_Scan(unsigned char tp);
+unsigned char F1C_TP_Scan(int *x, int *y);
 
 void TP_MODE_Demo(void);	
 void ADC_MODE_Demo(void);

@@ -1,14 +1,11 @@
 #ifndef __DE_FE_H__
 #define __DE_FE_H__
 
-//#include "de_be.h"
+#include "types_plus.h"
 
 //macro define
 #define SCALINITPASELMT (0xfffff)
 #define SCALLINEMAX (2048)
-
-
-#define   u32   unsigned int
 	
 #define  __u8 	unsigned char	
 #define __u16 	unsigned short	

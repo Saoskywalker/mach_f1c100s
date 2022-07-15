@@ -70,7 +70,7 @@ typedef struct
     uint32_t scale_flag; /*硬件缩放标志*/
     uint32_t tv_input_flag; /*是否使用cvbs输入*/
     void *write_back_addr; /*回写显存地址*/
-} framebuffer_dev; //显示器的硬件信息, 及硬件控制
+} framebuffer_dev_type; //显示器的硬件信息, 及硬件控制
 
 typedef enum 
 {
@@ -109,16 +109,17 @@ typedef struct {
 void MTF_fb_write_back_start(void); //截屏一帧  
 uint8_t MTF_fb_write_back_state(void); //查询完成状态
 
-render_dev_type *MTF_fb_render_create(framebuffer_dev *fb, uint32_t width, uint32_t height);
+render_dev_type *MTF_fb_render_create(framebuffer_dev_type *fb, uint32_t width, uint32_t height);
 void MTF_fb_destroy(render_dev_type *render);
-void MTF_fb_present(framebuffer_dev *fb, render_dev_type *render); //更新显示一帧
+void MTF_fb_present(framebuffer_dev_type *fb, render_dev_type *render); //更新显示一帧
 void *MTF_fb_get_dis_mem(render_dev_type *render); //获取可直接使用的显存地址
 
-void MTF_fb_set_backlight(framebuffer_dev *fb, int32_t brightness); //设置背光  
-void MTF_fb_TV_input(framebuffer_dev *fb, uint8_t state, uint8_t contrast, uint8_t bright, uint8_t saturation, uint8_t hue); //是否开启AV输入
-void MTF_fb_scale(framebuffer_dev *fb, uint8_t state, void *data); //是否开启硬件缩放
+void MTF_fb_set_backlight(framebuffer_dev_type *fb, int32_t brightness); //设置背光  
+void MTF_fb_TV_input(framebuffer_dev_type *fb, uint8_t state, uint8_t contrast, uint8_t bright, uint8_t saturation, uint8_t hue); //是否开启AV输入
+void MTF_fb_scale(framebuffer_dev_type *fb, uint8_t state, void *data); //是否开启硬件缩放
 
-void MTF_fb_init(framebuffer_dev *fb);
-void MTF_fb_exit(framebuffer_dev *fb);
+uint8_t MTF_fb_init(framebuffer_dev_type *fb);
+uint8_t MTF_fb_reset(framebuffer_dev_type *fb);
+uint8_t MTF_fb_exit(framebuffer_dev_type *fb);
 
 #endif
