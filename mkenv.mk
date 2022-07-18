@@ -108,6 +108,8 @@ SRC_C += \
 	arch/arm32/mach_f1c100s/driver/sys_defe.c \
 	arch/arm32/mach_f1c100s/driver/sys_audio.c \
 	arch/arm32/mach_f1c100s/driver/usb_phy.c \
+	arch/arm32/mach_f1c100s/driver/decode-jpeg-f1c100s.c \
+	arch/arm32/mach_f1c100s/driver/jpeg.c \
 
 # C standard library src
 SRC_C += \
